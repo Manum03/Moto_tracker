@@ -10,7 +10,11 @@ import { jsonError } from "@/lib/api-utils";
 async function handle(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret) {
-    const provided = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret");
+    // Vercel Cron envía el secreto como "Authorization: Bearer <CRON_SECRET>".
+    const provided =
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+      req.headers.get("x-cron-secret") ??
+      req.nextUrl.searchParams.get("secret");
     if (provided !== secret) return jsonError("No autorizado", 401);
   }
 

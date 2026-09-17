@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Motorcycle {
+  id             String   @id @default(cuid())
+  plate          String   @unique
+  brand          String
+  model          String
+  displacementCc Int
+  purchaseDate   DateTime
+  currentOdometer Int     @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  odometerLogs     OdometerLog[]
+  documents        Document[]
+  maintenanceRules MaintenanceRule[]
+  maintenanceLogs  MaintenanceLog[]
+  credits          Credit[]
+}
+
+model OdometerLog {
+  id           String     @id @default(cuid())
+  motorcycleId String
+  km           Int
+  recordedAt   DateTime   @default(now())
+
+  motorcycle Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  @@index([motorcycleId])
+}
+
+enum DocumentType {
+  SOAT
+  RTM
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  motorcycleId String
+  type         DocumentType
+  number       String?
+  issueDate    DateTime?
+  expiryDate   DateTime
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  motorcycle Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  @@index([motorcycleId])
+}
+
+enum MaintenanceType {
+  OIL_CHANGE
+  CHAIN
+  BRAKE_PADS
+  BRAKE_FLUID
+  TIRE_PRESSURE
+  OTHER
+}
+
+model MaintenanceRule {
+  id           String          @id @default(cuid())
+  motorcycleId String
+  type         MaintenanceType
+  intervalKm   Int?
+  intervalDays Int?
+  lastDoneKm   Int?
+  lastDoneDate DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  motorcycle Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  @@unique([motorcycleId, type])
+}
+
+model MaintenanceLog {
+  id           String          @id @default(cuid())
+  motorcycleId String
+  type         MaintenanceType
+  date         DateTime
+  km           Int
+  cost         Float?
+  notes        String?
+  createdAt    DateTime        @default(now())
+
+  motorcycle Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  @@index([motorcycleId])
+}
+
+model Credit {
+  id                 String   @id @default(cuid())
+  motorcycleId       String
+  totalAmount        Float
+  installmentsCount  Int
+  installmentAmount  Float
+  cutoffDay          Int
+  startDate          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  motorcycle   Motorcycle   @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+  installments Installment[]
+
+  @@index([motorcycleId])
+}
+
+model Installment {
+  id        String    @id @default(cuid())
+  creditId  String
+  number    Int
+  dueDate   DateTime
+  amount    Float
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  credit Credit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@unique([creditId, number])
+  @@index([creditId])
+}
+
+enum AlertType {
+  DOCUMENT
+  MAINTENANCE
+  CREDIT
+}
+
+enum AlertLevel {
+  YELLOW
+  RED
+}
+
+model NotificationLog {
+  id        String     @id @default(cuid())
+  type      AlertType
+  refId     String
+  level     AlertLevel
+  message   String
+  dueDate   DateTime
+  sentAt    DateTime   @default(now())
+
+  @@unique([type, refId, level])
+}
